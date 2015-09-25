@@ -1,0 +1,9 @@
+
+# These are the make targets that will run every night.
+export NIGHT_SHIFT_TARGETS="scaffold"
+
+# Exceptions for night-shift unused target check.
+export NIGHT_SHIFT_EXCEPTIONS="^(nuke|clean.*|all|list-all-targets|logs/.*)$"
+
+# Entry point(s) of night-shift.
+export NIGHT_SHIFT_ENTRY=""

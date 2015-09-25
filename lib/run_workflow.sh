@@ -1,16 +1,23 @@
 #!/bin/bash
+
 # This is a wrapper gets triggered by cron and wraps a Makefile.
-#
+
 # This script will run the Makefile at most MAX_ATTEMPTS times
 # If the final attempt produces no errors, this script will never
 # output anything.
+
 # However if the final attempt failed, this script
 # will print all log output from all previous attempts so that
 # cron can send an email.
 
-cd $(dirname $0)/..
+cd $(dirname $0)/../..
 export PATH=$PATH:/usr/local/bin/
-source config/data_flow_targets.sh
+source config/night_shift.sh
+
+if [ -f locked ]
+then
+    exit 0
+fi
 
 MAX_ATTEMPTS=23
 
@@ -40,18 +47,10 @@ if ps aux | grep -v $$ | grep -v $PPID | egrep '/bin/bash.+[r]un_workflow.sh' >>
     fi
 fi
 
-echo -e "\n\n[+] Deleting old intermediate files" >> $THIS_ATTEMPT
-function find_old_intermediate_files {
-  find intermediate/ -ctime +14 | egrep '\.(csv|t?gz|zip|sql|json)$'
-}
-
-find_old_intermediate_files >> $THIS_ATTEMPT
-find_old_intermediate_files | xargs rm -f
-
 # Run the main targets:
 MAKE_EXIT_CODES=0
 # Make won't do anything if everything is ready
-for TARGET in "-kj6 $DATA_FLOW_TARGETS" $DATA_FLOW_TARGETS backup; do
+for TARGET in "-kj6 $NIGHT_SHIFT_TARGETS" $NIGHT_SHIFT_TARGETS backup; do
     echo -e "\n\n[+] Working on target ${TARGET}" >> $THIS_ATTEMPT
     make ${TARGET} >> $THIS_ATTEMPT 2>&1
     LAST_EXIT_CODE=$?
@@ -78,23 +77,14 @@ if [[ "$ATTEMPT_COUNT" -ge $MAX_ATTEMPTS ]]; then
         exit 1
     fi
 
-    # These numbers are hand-generated and are the
-    # median of the last 7 days -5 % and + 5 %.
-    # TODO: Calculate these numbers dynamically when we are sure this heuristic works.
-    MIN_LOG_SIZE=302655
-    MAX_LOG_SIZE=403540
-
-    log_size=`wc -c logs/${DATE}/attempt-*.log|grep total|cut -d' ' -f1`
-    if [[ "$log_size" -lt "$MIN_LOG_SIZE" || "$log_size" -gt "$MAX_LOG_SIZE" ]]; then
-        echo "[!] No errors but log size is below or above threshold:"
-        echo "Expected min:${MIN_LOG_SIZE} < actual:${log_size} < max:${MAX_LOG_SIZE}."
+    # Tests attempts log size.
+    python night-shift/tests/attempt_log_sizes.py
+    if [[ `echo $?` -gt 0 ]]; then
         ls -l "logs/${DATE}/"
         exit 1
     fi
 
-    echo "Everything is ok, here is the ls:"
-    ls -hl "results/${DATE}/"
-    ls -hRl "intermediate/${DATE}/"
+    echo "Everything is ok."
     exit 0
 
 else

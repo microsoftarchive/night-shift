@@ -2,81 +2,27 @@
 
 require 'erb'
 require 'json'
+require 'optparse'
 
-
-def parse_arguments(argv)
-  state = :template
-  templates = []
-  common_context = {}
-  varname = nil
-
-  argv.each do |arg|
-    case state
-    when :template
-      if arg =~ /^--(\w+)$/
-        state = :variable
-        varname = $1
-      else
-        templates << arg
-      end
-    when :variable
-      common_context[varname] = arg
-      state = :template
-    end
-  end
-
-  raise "Bad final state: #{state}" if not state == :template
-  raise "Need at least one template" if templates.empty?
-
-  [templates, common_context]
-end
-
-def db_config_path(file)
-  return File.absolute_path(File.dirname(__FILE__) + "/../config/" + file)
-end
-
-def redshift_aws_creds
-  file = db_config_path("nightly_aws_credentials.json")
-  json = JSON.load(File.read(file))
-  access = json['aws_access_key_id']
-  secret = json['aws_secret_access_key']
-
-  "'aws_access_key_id=#{access};aws_secret_access_key=#{secret}'"
-end
-
-def extract_exports(credentials_file)
-  contents = File.read(credentials_file)
+def extract_exports(config_file)
+  contents = File.read(config_file)
   pairs = contents.scan(/export (\w+)="?(.+?)"?$/)
   Hash[pairs]
 end
 
-def run_query_with_cli(expanded_query, mode, db)
-  if db =~ /mysql/
-    warehouse_credentials = db_config_path("#{db}_credentials.sh")
-  elsif db.to_s.start_with? "redshift"
-    warehouse_credentials = db_config_path("#{db}_pg_credentials.sh")
-  else
-    raise "Don't know how to log in to database '#{db}'"
-  end
-
-  cli = if db =~ /mysql/
-    env = extract_exports(warehouse_credentials)
-    cli = IO.popen(". #{warehouse_credentials} && mysql --default-character-set=latin1 --batch --quick " +
+def run_query_with_cli(expanded_query, mode, options)
+  if options[:dialect] == :mysql
+    env = extract_exports(options[:config])
+    cli = IO.popen(". #{options[:config]} && mysql --default-character-set=latin1 --batch --quick " +
       "-P #{env['MYSQL_PORT']} -u #{env['MYSQL_USER']} #{env['MYSQL_DATABASE']}", "r+")
-  else
-    # `source` is not available in vanilla /bin/sh but `.` is:
-    cli = IO.popen(". #{warehouse_credentials} && psql -X -t", "r+")
+  elsif [:postgres, :redshift].include?(options[:dialect])
+    cli = IO.popen(". #{options[:config]} && psql -X -t", "r+")
   end
 
-  prefix = "\\set ON_ERROR_STOP on\n\\set QUIET on\n"
-
-  if mode == :intermediate
-    if db =~ /mysql/
-      cli.write(expanded_query + ";")
-    else
-      cli.write(prefix + expanded_query + ";")
-    end
-
+  psql_prefix = "\\set ON_ERROR_STOP on\n\\set QUIET on\n"
+  if mode == :intermediate or not options[:csv]
+    cli.write("#{expanded_query};") if options[:dialect] == :mysql
+    cli.write("#{psql_prefix}#{expanded_query};") if [:postgres, :redshift].include?(options[:dialect])
     cli.close_write
 
     result = cli.readlines
@@ -89,28 +35,16 @@ def run_query_with_cli(expanded_query, mode, db)
 
     return result
   else
-    # This script supports an optional --FINALLY-- marker
-    # to split an expanded template into two parts:
-    # 1) A setup_query for setting up temporary views, etc.
-    # 2) A final_query which will be the CSV result.
-    if expanded_query =~ /^\s*-- *FINALLY *--\s*$/
-      setup_query, final_query = expanded_query.split("-- FINALLY --", 2)
-    else
-      setup_query = ""
-      final_query = expanded_query
-    end
-
-    # RedShift cannot copy CSV directly to STDOUT, so
-    # we emulate it with some psql settings...
-    if db.to_s.start_with? "redshift"
+    if options[:dialect] == :redshift
+      # RedShift cannot copy CSV directly to STDOUT, so
+      # we emulate it with some psql settings...
       # For explanations of these options, type \? in psql.
       redshift_copy = "\\a\n\\f ','\n\\t off\n\\pset footer off\n"
-      cli.write("#{prefix}#{redshift_copy}#{setup_query}\n#{final_query};")
-    elsif db =~ /mysql/
-      cli.write("#{setup_query}\n#{final_query};")
-    else
-      cli.write("#{prefix}#{setup_query} COPY (#{final_query}) TO STDOUT
-                 WITH CSV HEADER;")
+      cli.write("#{psql_prefix}#{redshift_copy}\n#{expanded_query.chomp(';')};")
+    elsif options[:dialect] == :mysql
+      cli.write("#{expanded_query.chomp(';')};")
+    elsif options[:dialect] == :postgres
+      cli.write("#{psql_prefix} COPY (#{expanded_query.chomp(';')}) TO STDOUT WITH CSV HEADER;")
     end
 
     cli.close_write
@@ -136,12 +70,6 @@ def expand_template_with_context(template, context)
   ostr.define_singleton_method(:post_process_block) do
     @post_process_block
   end
-  ostr.define_singleton_method(:aws_creds) do
-    redshift_aws_creds
-  end
-  # ostr.define_singleton_method(:segment) do
-  #   "(select distinct id as user_id from real.users)"
-  # end
 
   # Define each key in context as a instance method for the context object
   context.each do |k, v|
@@ -157,40 +85,46 @@ def expand_template_with_context(template, context)
   [expanded_query, ostr]
 end
 
-def process_templates_with_context(templates, common_context)
-  if common_context["db"].nil?
-    db = :postgres
-  else
-    db = common_context["db"].to_sym
-  end
-
-  templates.each_with_index do |template_name, i|
-    STDERR.puts "[+] Expanding #{template_name} for database #{db}"
+def process_templates(options)
+  options[:templates].each_with_index do |template_name, i|
+    STDERR.puts "[+] Expanding #{template_name} for database #{options[:dialect]}"
 
     template_text = File.read(template_name).force_encoding("UTF-8")
     template = ERB.new(template_text)
-    expanded, ostruct = expand_template_with_context(template, common_context)
+    expanded_query, ostruct = expand_template_with_context(template, options[:context])
 
-    # STDERR.puts "\n[+] Expanded to\n#{expanded}"
-
-    is_last_query = (i == (templates.size - 1))
+    is_last_query = (i == (options[:templates].size - 1))
     if is_last_query
-      run_query_with_cli(expanded, :final, db)
+      run_query_with_cli(expanded_query, :final, options)
     else
-      intermediate = run_query_with_cli(expanded, :intermediate, db)
+      intermediate = run_query_with_cli(expanded_query, :intermediate, options)
       STDERR.puts "\n[+] Got intermediate result #{intermediate.inspect}"
 
       # If the template defined a post_process_block, execute it here...
       unless ostruct.post_process_block.nil?
         # that modifies common_context for next script
-        ostruct.post_process_block.call(intermediate, common_context)
+        ostruct.post_process_block.call(intermediate, options[:context])
       end
     end
   end
 end
 
-
 if $0 == __FILE__
-  templates, common_context = parse_arguments(ARGV)
-  process_templates_with_context(templates, common_context)
+  options = {:config => nil, :dialect => nil, :csv => false, :context => {}}
+  OptionParser.new do |opt|
+    opt.on('-d', '--dialect DIALECT', [:postgres, :mysql, :redshift], 'Database dialect (postgres, mysql, redshift)') { |o| options[:dialect] = o }
+    opt.on('-c', '--config CONFIG_FILE', 'Configuration file.') { |o| options[:config] = File.absolute_path(o) }
+    opt.on('--csv', "Convert the query's result into CSV") { |o| options[:csv] = true }
+    ARGV.select { |attr| attr =~ /^--(\w+)$/ and not ['--config','--dialect','--csv'].include?(attr) } \
+        .each { |attr| opt.on("#{attr} VALUE") { |o| options[:context][/^--(\w+)$/.match(attr)[1]] = o } }
+  end.parse!
+  options[:templates] = ARGV.map { |f| File.absolute_path(f) }
+
+  raise "Need at least one template." if options[:templates].empty?
+  raise "Configuration file is required." if options[:context].nil?
+  raise "Dialect attribute is required." if options[:dialect].nil?
+  raise "Not existing configuration file." if not File.exist?(options[:config])
+  raise "Template is not exists." if not options[:templates].map { |f| File.exist?(f) } .all?
+
+  process_templates(options)
 end
