@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 source config/night_shift.sh
 export TODAY=_test_
 
