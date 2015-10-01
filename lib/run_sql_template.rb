@@ -10,7 +10,33 @@ def extract_exports(config_file)
   Hash[pairs]
 end
 
+def get_final_query(expanded_query, mode, options)
+  psql_prefix = "\\set ON_ERROR_STOP on\n\\set QUIET on\n"
+  if mode == :intermediate or not options[:csv]
+    return "#{expanded_query.chomp(';')};" if options[:dialect] == :mysql
+    return "#{psql_prefix}#{expanded_query.chomp(';')};" if [:postgres, :redshift].include?(options[:dialect])
+  else
+    if options[:dialect] == :redshift
+      # RedShift cannot copy CSV directly to STDOUT, so
+      # we emulate it with some psql settings...
+      # For explanations of these options, type \? in psql.
+      redshift_copy = "\\a\n\\f ','\n\\t off\n\\pset footer off\n"
+      return "#{psql_prefix}#{redshift_copy}\n#{expanded_query.chomp(';')};"
+    elsif options[:dialect] == :mysql
+      return "#{expanded_query.chomp(';')};"
+    elsif options[:dialect] == :postgres
+      return "#{psql_prefix} COPY (#{expanded_query.chomp(';')}) TO STDOUT WITH CSV HEADER;"
+    end
+  end
+end
+
 def run_query_with_cli(expanded_query, mode, options)
+  if options[:dryrunfirst] or options[:dryrunlast]
+    STDERR.puts("Query to execute:\n#{expanded_query}")
+    raise "quit because of --dry-run" if options[:dryrunfirst]
+    raise "quit because of --dry-run" if options[:dryrunlast] and mode == :final
+  end
+
   if options[:dialect] == :mysql
     env = extract_exports(options[:config])
     cli = IO.popen(". #{options[:config]} && mysql --default-character-set=latin1 --batch --quick " +
@@ -19,47 +45,28 @@ def run_query_with_cli(expanded_query, mode, options)
     cli = IO.popen(". #{options[:config]} && psql -X -t", "r+")
   end
 
-  psql_prefix = "\\set ON_ERROR_STOP on\n\\set QUIET on\n"
-  if mode == :intermediate or not options[:csv]
-    cli.write("#{expanded_query};") if options[:dialect] == :mysql
-    cli.write("#{psql_prefix}#{expanded_query};") if [:postgres, :redshift].include?(options[:dialect])
-    cli.close_write
+  query = get_final_query(expanded_query, mode, options)
+  cli.write(query)
+  cli.close_write
 
+  # Get the result
+  if mode == :intermediate
     result = cli.readlines
-    cli.close
-
-    if $?.to_i != 0
-      STDERR.puts "Failed Query:\n#{expanded_query}\n\n"
-      raise "cli exited with #{$?}"
-    end
-
-    return result
   else
-    if options[:dialect] == :redshift
-      # RedShift cannot copy CSV directly to STDOUT, so
-      # we emulate it with some psql settings...
-      # For explanations of these options, type \? in psql.
-      redshift_copy = "\\a\n\\f ','\n\\t off\n\\pset footer off\n"
-      cli.write("#{psql_prefix}#{redshift_copy}\n#{expanded_query.chomp(';')};")
-    elsif options[:dialect] == :mysql
-      cli.write("#{expanded_query.chomp(';')};")
-    elsif options[:dialect] == :postgres
-      cli.write("#{psql_prefix} COPY (#{expanded_query.chomp(';')}) TO STDOUT WITH CSV HEADER;")
-    end
-
-    cli.close_write
     cli.each do |line|
       puts line
     end
-    cli.close
-
-    if $?.to_i != 0
-      STDERR.puts "Failed Query:\n#{expanded_query}\n\n"
-      raise "cli exited with #{$?}"
-    end
-
-    return nil
+    result = nil
   end
+  cli.close
+
+  # Write error to STDERR
+  if $?.to_i != 0
+    STDERR.puts "Failed Query:\n#{expanded_query}\n\n"
+    raise "cli exited with #{$?}"
+  end
+
+  return result
 end
 
 def expand_template_with_context(template, context)
@@ -110,11 +117,13 @@ def process_templates(options)
 end
 
 if $0 == __FILE__
-  options = {:config => nil, :dialect => nil, :csv => false, :context => {}}
+  options = {:config => nil, :dialect => nil, :csv => false, :dryrunfirst => false, :dryrunlast => false, :context => {}}
   OptionParser.new do |opt|
     opt.on('-d', '--dialect DIALECT', [:postgres, :mysql, :redshift], 'Database dialect (postgres, mysql, redshift)') { |o| options[:dialect] = o }
     opt.on('-c', '--config CONFIG_FILE', 'Configuration file.') { |o| options[:config] = File.absolute_path(o) }
     opt.on('--csv', "Convert the query's result into CSV") { |o| options[:csv] = true }
+    opt.on('-nf', 'Do not execute the first SQL, only print it. Terminate after the first one.') { |o| options[:dryrunfirst] = true }
+    opt.on('-nl', 'Do not execute the last SQL, only print it.') { |o| options[:dryrunlast] = true }
     ARGV.select { |attr| attr =~ /^--(\w+)$/ and not ['--config','--dialect','--csv'].include?(attr) } \
         .each { |attr| opt.on("#{attr} VALUE") { |o| options[:context][/^--(\w+)$/.match(attr)[1]] = o } }
   end.parse!
