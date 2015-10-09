@@ -3,7 +3,6 @@ import re
 import io
 import datetime
 import argparse
-from babel.numbers import format_number
 from math import log
 from flask import *
 from functools import wraps
