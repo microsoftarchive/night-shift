@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Data Flow</title>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+    <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+  </head>
+  <body class="{{ page|replace('_',' ') }}">
+    <header>
+      <ul>
+        <li><a href="{{ url_for('.flow'.format(page), date=current_date.isoformat() )}}" {% if page=="flow" %}class="active"{% endif %}>Log Debugging</a></li>
+        <li><a href="{{ url_for('.gantt'.format(page), date=current_date.isoformat() )}}" {% if page=="gantt" %}class="active"{% endif %}>Command Gantt</a></li>
+      </ul>
+      <nav>
+        {% for date in dates %}
+        <a href="{{ url_for('.{}'.format(page), date=date )}}" class="{% if date == current_date.isoformat() %}active{% endif %}">{{ date }}</a>
+        {% endfor %}
+      </nav>
+    </header>
+    <section class="main">
+      {% block body %}{% endblock %}
+    </section>
+  </body>
+</html>

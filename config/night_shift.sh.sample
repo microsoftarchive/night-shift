@@ -7,3 +7,6 @@ export NIGHT_SHIFT_EXCEPTIONS="^(nuke|clean.*|all|list-all-targets|logs/.*)$"
 
 # Entry point(s) of night-shift.
 export NIGHT_SHIFT_ENTRY=""
+
+# Path to the log folder.
+export NIGHT_SHIFT_PROJECT_DIR=""

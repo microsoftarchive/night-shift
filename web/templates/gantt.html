@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h1>Command Gantt</h1>
+<button id="showlog" data-default-text="show every command" data-alternate-text="hide not make level commands">show every command</button>
+
+<ul>
+{% for cmd in commands %}
+<li {% if cmd.status == 'timeout' or not cmd.has_make_level %}class="detailed"{% endif %}>
+  <a href="{{ url_for('.flow', date=cmd.date, log_id=cmd.log_id) if cmd.target != 'no-target' else '#' }}" class="time / {{ cmd.status }}{{ ' attempt' if cmd.attempt_nr > 1 and cmd.target != 'no-target' else '' }}">{{ '%02d' % cmd.started_at.hour }}:{{ '%02d' % cmd.started_at.minute }}{% if cmd.attempt_nr > 1 and cmd.target != 'no-target' %} <small>{{ cmd.attempt_nr }}</small>{% endif %}</a>
+  <div style="left: {{ cmd.waited|round(2,'floor') }}px; width: {{cmd.length|round(2,'floor')+1}}px;" class="{{ cmd.status }}">
+    <p><span>{{ cmd.length|round(2,'floor') if cmd.status != 'timeout' else 'N/A ' }}m</span>: {{ cmd.command }}</p>
+  </div>
+  {% for i in range((cmd.waited/60)|int + (2 if cmd.waited % 60 > 45 else 1)) %}
+  <div class="vl" style="left: {{ 25+55+(60*i) }}px;">&nbsp;</div>
+  {% endfor %}
+</li>
+{% endfor %}
+</ul>
+
+<script>
+$(document).ready(function() {
+  $("#showlog").click(function() { 
+    $("ul > li.detailed").toggle();
+    var btn = $(this);
+    btn.text( (btn.text() == btn.attr('data-default-text')) ? btn.attr('data-alternate-text') : btn.attr('data-default-text') );
+  });
+});
+</script>
+{% endblock %}

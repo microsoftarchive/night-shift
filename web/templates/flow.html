@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h1>Log Debugging</h1>
+
+{% if ts and ts.lines > 0 and ts.content != '' %}
+<h2>Tracking shell log</h2>
+<pre class="ts">{{ ts.content }}</pre>
+{% endif %}
+
+<h2>Target logs</h2>
+{% for log in target_logs %}
+<div>
+  <input type="checkbox" id="{{ log.id }}" date="{{ current_date }}" {% if log_id == log.id %}checked{% endif %}>
+  <label for="{{ log.id }}" date="{{ current_date }}" class='log {% if log.success %}success{% else %}failure{% endif %}'>{{ log.name }}</label>
+  <small>({{ filesize(log.size) }}, {{ log.lines }} lines)</small>
+  <pre class="{% if log.lines > 1000 %}long{% endif %}"></pre>
+</div>
+{% else %}
+Not found any log files!
+{% endfor %}
+
+<script>
+updateLogBlock = function() {
+  var block = $('#' + this.id + " ~ pre");
+  if ($(this).is(':checked')) {
+    block.html('Loading...');
+    $.get("/download/" + $(this).attr('date') + '/' + $(this).attr('id'), function(data) {
+      block.html(data.trim());
+    });
+  } else {
+    block.html('');
+  }
+};
+$(document).ready(function() {
+  $("input[type=checkbox]:checked").each(updateLogBlock);
+  $("input[type=checkbox]").change(updateLogBlock);
+});
+</script>
+{% endblock %}
