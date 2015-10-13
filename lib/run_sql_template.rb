@@ -3,6 +3,7 @@
 require 'erb'
 require 'json'
 require 'optparse'
+require 'shellwords'
 
 def extract_exports(config_file)
   contents = File.read(config_file)
@@ -39,10 +40,10 @@ def run_query_with_cli(expanded_query, mode, options)
 
   if options[:dialect] == :mysql
     env = extract_exports(options[:config])
-    cli = IO.popen(". #{options[:config]} && mysql --default-character-set=latin1 --batch --quick " +
+    cli = IO.popen(". #{options[:config].shellescape} && mysql --default-character-set=latin1 --batch --quick " +
       "-P #{env['MYSQL_PORT']} -u #{env['MYSQL_USER']} #{env['MYSQL_DATABASE']}", "r+")
   elsif [:postgres, :redshift].include?(options[:dialect])
-    cli = IO.popen(". #{options[:config]} && psql -X -t", "r+")
+    cli = IO.popen(". #{options[:config].shellescape} && psql -X -t", "r+")
   end
 
   query = get_final_query(expanded_query, mode, options)
