@@ -22,7 +22,7 @@ SHELL=./night-shift/lib/tracking_shell.py --target $@ --date $(TODAY)
 
 .PHONY: all nuke scaffold backup clean-test cleanup
 
-# All target is disabled.
+# All targets are disabled.
 all:
 	@echo Specify target
 
@@ -50,5 +50,5 @@ list-all-targets:
 
 # Backup after the target execution is finished (please redefine)
 # WARNING: Order is important. This has to be the last target in this dependency list!
-# It should be the same ones as you can find in the `config/night_shift.sh`.
+# It should be the same as the ones you can find in the `config/night_shift.sh`.
 backup::
