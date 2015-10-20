@@ -65,9 +65,7 @@ Running `night-shift/web/app.py` will
 
 ![](docs/img/ns_command_gantt.png)
 
-
 There's also a test for checking whether log size is below or above threshold.
-
 
 ## How you can use it?
 
@@ -98,7 +96,7 @@ There's also a test for checking whether log size is below or above threshold.
    $ nano config/dbname_postgres.sh
    ```
     
-   Change the informations in the file.
+   Change the parameters in the file.
     
    ```sh
    export PGHOST="localhost"
@@ -115,8 +113,8 @@ There's also a test for checking whether log size is below or above threshold.
    ```
 
 7. Write your own make targets. You can extend the build in targets like:
-   - **scaffold**: Create necessary  directory structure.
-   - **nuke**: Removes every files. Gives you a clean slate during development.
+   - **scaffold**: Create necessary directory structure.
+   - **nuke**: Removes every file. Gives you a clean slate during development.
    - **cleanup**: Terminate pending resources.
    - **backup**: Backup files after the nightly.
 
@@ -135,7 +133,7 @@ There's also a test for checking whether log size is below or above threshold.
    $ nano config/night_shift.sh
    ```
    
-   Add your up level targets after `scaffold` what you want to execute.
+   Add your top level targets after `scaffold` that you want to execute.
    
    ```sh
    export NIGHT_SHIFT_TARGETS="scaffold"
@@ -161,7 +159,7 @@ You can check out the `examples` folder for working examples.
 ## How you can extend it?
 
 ####  [Trackingshell](https://github.com/wunderlist/trackingshell)
-You can track the target execution of a makefile with this tool easily. If you need more log or you want to add some automatic magic before/after every target execution.
+You can track the target execution of a makefile with this tool easily. If you need more logs or you want to add some automatic magic before/after every target execution.
 
 Create a `lib/tracking_shell.py` file.
 
