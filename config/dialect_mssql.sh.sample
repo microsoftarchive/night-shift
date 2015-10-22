@@ -1,0 +1,5 @@
+export MSSQL_HOST="servername.database.windows.net"
+export MSSQL_PORT="1433"
+export MSSQL_DATABASE=""
+export MSSQL_USER=""
+export MSSQL_PASSWORD=""
