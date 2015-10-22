@@ -15,9 +15,13 @@ def get_final_query(expanded_query, mode, options)
   psql_prefix = "\\set ON_ERROR_STOP on\n\\set QUIET on\n"
   if mode == :intermediate or not options[:csv]
     return "#{expanded_query.chomp(';')};" if options[:dialect] == :mysql
+    return "#{expanded_query}" if options[:dialect] == :mssql
     return "#{psql_prefix}#{expanded_query.chomp(';')};" if [:postgres, :redshift].include?(options[:dialect])
   else
-    if options[:dialect] == :redshift
+    if options[:dialect] == :mssql
+      # Note: have to add extra parameters into `sqlcmd`.
+      return "#{expanded_query}"
+    elsif options[:dialect] == :redshift
       # RedShift cannot copy CSV directly to STDOUT, so
       # we emulate it with some psql settings...
       # For explanations of these options, type \? in psql.
@@ -42,6 +46,14 @@ def run_query_with_cli(expanded_query, mode, options)
     env = extract_exports(options[:config])
     cli = IO.popen(". #{options[:config].shellescape} && mysql --default-character-set=latin1 --batch --quick " +
       "-P #{env['MYSQL_PORT']} -u #{env['MYSQL_USER']} #{env['MYSQL_DATABASE']}", "r+")
+  elsif options[:dialect] == :mssql
+    env = extract_exports(options[:config])
+    cmd = ". #{options[:config].shellescape} && sqlcmd -S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' " +
+      "-U '#{env['MSSQL_USER']}' -P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}' -I "
+    if mode == :final and options[:csv]
+      cmd += "-h-1 -s',' "
+    end
+    cli = IO.popen(cmd, "r+")
   elsif [:postgres, :redshift].include?(options[:dialect])
     cli = IO.popen(". #{options[:config].shellescape} && psql -X -t", "r+")
   end
@@ -120,7 +132,7 @@ end
 if $0 == __FILE__
   options = {:config => nil, :dialect => nil, :csv => false, :dryrunfirst => false, :dryrunlast => false, :context => {}}
   OptionParser.new do |opt|
-    opt.on('-d', '--dialect DIALECT', [:postgres, :mysql, :redshift], 'Database dialect (postgres, mysql, redshift)') { |o| options[:dialect] = o }
+    opt.on('-d', '--dialect DIALECT', [:postgres, :mysql, :redshift, :mssql], 'Database dialect (postgres, mysql, redshift, mssql)') { |o| options[:dialect] = o }
     opt.on('-c', '--config CONFIG_FILE', 'Configuration file.') { |o| options[:config] = File.absolute_path(o) }
     opt.on('--csv', "Convert the query's result into CSV") { |o| options[:csv] = true }
     opt.on('-nf', 'Do not execute the first SQL, only print it. Terminate after the first one.') { |o| options[:dryrunfirst] = true }
