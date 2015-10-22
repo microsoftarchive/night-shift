@@ -19,7 +19,7 @@ def get_final_query(expanded_query, mode, options)
     return "#{psql_prefix}#{expanded_query.chomp(';')};" if [:postgres, :redshift].include?(options[:dialect])
   else
     if options[:dialect] == :mssql
-      # Note: have to add extra parameters into `sqlcmd`.
+      # Note: have to add few extra parameters into `sqlcmd`.
       return "#{expanded_query}"
     elsif options[:dialect] == :redshift
       # RedShift cannot copy CSV directly to STDOUT, so
@@ -51,7 +51,7 @@ def run_query_with_cli(expanded_query, mode, options)
     cmd = ". #{options[:config].shellescape} && sqlcmd -S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' " +
       "-U '#{env['MSSQL_USER']}' -P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}' -I "
     if mode == :final and options[:csv]
-      cmd += "-h-1 -s',' "
+      cmd += "-h-1 -s',' -W "
     end
     cli = IO.popen(cmd, "r+")
   elsif [:postgres, :redshift].include?(options[:dialect])
