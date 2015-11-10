@@ -52,6 +52,8 @@ def run_query_with_cli(expanded_query, mode, options)
       "-U '#{env['MSSQL_USER']}' -P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}' -b -I "
     if mode == :final and options[:csv]
       cmd += "-h-1 -s',' -W "
+    else
+      cmd += "-e -p "
     end
     cli = IO.popen(cmd, "r+")
   elsif [:postgres, :redshift].include?(options[:dialect])
