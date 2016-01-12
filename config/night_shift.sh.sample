@@ -10,3 +10,9 @@ export NIGHT_SHIFT_ENTRY=""
 
 # Path to the project folder.
 export NIGHT_SHIFT_PROJECT_DIR=""
+
+# Number of parallel jobs.
+export NIGHT_SHIFT_PARALLEL_JOBS=6
+
+# Number of maximum attempts.
+export NIGHT_SHIFT_MAX_ATTEMPTS=23
