@@ -48,7 +48,7 @@ fi
 # Run the main targets:
 MAKE_EXIT_CODES=0
 # Make won't do anything if everything is ready
-for TARGET in "-k -j $NIGHT_SHIFT_PARALLEL_JOBS $NIGHT_SHIFT_TARGETS" $NIGHT_SHIFT_TARGETS backup; do
+for TARGET in "-k -j $NIGHT_SHIFT_PARALLEL_JOBS $NIGHT_SHIFT_TARGETS" $NIGHT_SHIFT_FAILURE_TARGETS; do
     echo -e "\n\n[+] Working on target ${TARGET}" >> $THIS_ATTEMPT
     make ${TARGET} >> $THIS_ATTEMPT 2>&1
     LAST_EXIT_CODE=$?

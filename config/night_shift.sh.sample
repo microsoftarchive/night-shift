@@ -1,6 +1,9 @@
 
-# These are the make targets that will run every night.
+# These are the make targets that will run every night on parallel.
 export NIGHT_SHIFT_TARGETS="scaffold"
+
+# These make targets will run right after NIGHT_SHIFT_TARGETS is finished on a single job.
+export NIGHT_SHIFT_FAILURE_TARGETS="backup"
 
 # Exceptions for night-shift unused target check.
 export NIGHT_SHIFT_EXCEPTIONS="^(nuke|clean.*|all|list-all-targets|logs/.*)$"
@@ -16,3 +19,4 @@ export NIGHT_SHIFT_PARALLEL_JOBS=6
 
 # Number of maximum attempts.
 export NIGHT_SHIFT_MAX_ATTEMPTS=23
+
