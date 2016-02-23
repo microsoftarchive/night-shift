@@ -51,7 +51,7 @@ def run_query_with_cli(expanded_query, mode, options)
     cmd = ". #{options[:config].shellescape} && sqlcmd -S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' " +
       "-U '#{env['MSSQL_USER']}' -P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}' -b -I "
     if mode == :final and options[:csv]
-      cmd += "-h-1 -s',' -W "
+      cmd += "-h-1 -s',' -W | head -n -2"
     else
       cmd += "-e -p "
     end
