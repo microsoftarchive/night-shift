@@ -11,6 +11,9 @@ from dateutil.parser import parse as parse_datetime
 app  = Flask(__name__)
 
 class Logs(object):
+    # extendable menu list
+    MENU = []
+
     # void
     def __init__(self, dir_project, date = None):
         self.dir_project = os.path.abspath(dir_project)
@@ -180,10 +183,10 @@ class TargetLogs(Logs):
     # list<dict>
     def get_sorted_target_logs_dict(self):
         logs_sorted_by_size = sorted(self.get_target_logs_dict(), \
-            lambda x,y: cmp(x['size'], y['size']), reverse = True)
+            key = lambda x: x['size'], reverse = True)
 
         return sorted(logs_sorted_by_size, \
-            lambda x,y: cmp(x['success'], y['success']))
+            key = lambda x: x['success'])
 
 # str
 def filesize(n,pow=0,b=1024,u='B',pre=['']+[p+'i'for p in'KMGTPEZY']):
@@ -210,6 +213,7 @@ class resolve(object):
                     'current_date': logger.date,
                     'dates': logger.find_available_log_dates()[-7:],
                     'filesize': filesize,
+                    'menus': Logs.MENU,
                 })
                 return render_template('{}.html'.format(f.__name__), **data)
             else:
