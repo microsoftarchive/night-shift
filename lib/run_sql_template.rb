@@ -3,6 +3,7 @@
 require 'erb'
 require 'json'
 require 'optparse'
+require 'tempfile'
 require 'shellwords'
 
 def extract_exports(config_file)
@@ -42,31 +43,44 @@ def run_query_with_cli(expanded_query, mode, options)
     raise "quit because of --dry-run" if options[:dryrunlast] and mode == :final
   end
 
+  query = get_final_query(expanded_query, mode, options)
   if options[:dialect] == :mysql
     env = extract_exports(options[:config])
     cli = IO.popen(". #{options[:config].shellescape} && mysql --default-character-set=latin1 --batch --quick " +
       "-P #{env['MYSQL_PORT']} -u #{env['MYSQL_USER']} #{env['MYSQL_DATABASE']}", "r+")
+    cli.write(query)
+    cli.close_write
+
   elsif options[:dialect] == :mssql
     env = extract_exports(options[:config])
-    cmd = ". #{options[:config].shellescape} && sqlcmd -S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' " +
-      "-U '#{env['MSSQL_USER']}' -P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}' -b -I "
+    cmdattr = "-S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' -U '#{env['MSSQL_USER']}' " +
+      "-P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}'"
+
     if mode == :final and options[:csv]
-      cmd += "-h-1 -s',' -W | head -n -2"
+      tmpfile = Tempfile.new('bcpinfo-')
+      pipe = tmpfile.path
+      tmpfile.close!()
+      cmd = "mkfifo #{pipe} ; (cat #{pipe} && rm -f #{pipe} &) ; (. #{options[:config].shellescape} && bcp \"#{query}\" queryout #{pipe} #{cmdattr} -c -q -t, >&2)"
+      cli = IO.popen(cmd, "r+")
     else
-      cmd += "-e -p "
+      cmd = ". #{options[:config].shellescape} && sqlcmd #{cmdattr} -e -p -b -I"
+      cli = IO.popen(cmd, "r+")
+      cli.write(query)
     end
-    cli = IO.popen(cmd, "r+")
+    cli.close_write
   elsif [:postgres, :redshift].include?(options[:dialect])
     cli = IO.popen(". #{options[:config].shellescape} && psql -X -t", "r+")
+    cli.write(query)
+    cli.close_write
   end
-
-  query = get_final_query(expanded_query, mode, options)
-  cli.write(query)
-  cli.close_write
 
   # Get the result
   if mode == :intermediate
     result = cli.readlines
+    if options[:dialect] == :mssql
+      # Write the result to the stderr to make it debugable
+      STDERR.puts result.join ""
+    end
   else
     cli.each do |line|
       puts line
