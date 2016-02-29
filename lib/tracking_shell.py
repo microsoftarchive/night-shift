@@ -23,15 +23,15 @@ class MakeTarget(ts.MakeTarget):
 
     # bool
     def is_log_directory_target(self):
-        return bool(re.match(ur'^logs/\d{4}-\d{2}-\d{2}$', self.target))
+        return bool(re.match(r'^logs/\d{4}-\d{2}-\d{2}$', self.target))
 
     # bool
     def is_log_target(self):
-        return bool(re.match(ur'^logs/\d{4}-\d{2}-\d{2}/.*$', self.target))
+        return bool(re.match(r'^logs/\d{4}-\d{2}-\d{2}/.*$', self.target))
 
     # bool
     def is_results_target(self):
-        return bool(re.match(ur'^results/\d{4}-\d{2}-\d{2}/.*$', self.target))
+        return bool(re.match(r'^results/\d{4}-\d{2}-\d{2}/.*$', self.target))
 
     # bool
     def is_big_data_file(self):
