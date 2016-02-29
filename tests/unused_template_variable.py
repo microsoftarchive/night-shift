@@ -1,3 +1,4 @@
+from __future__ import print_function
 import io
 import os
 import re
@@ -8,7 +9,7 @@ import argparse
 
 def get_commands(fd):
     current_command, concat_next = [], False
-    for line in args.commands_file.xreadlines():
+    for line in args.commands_file.readlines():
         trimmed_line = line.strip()
         concat_next = trimmed_line.endswith('\\')
         current_command.append(trimmed_line.strip('\\'))
@@ -37,12 +38,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     warnings, errors = [], []
-    commands = map(lambda x: x.split('>')[0].strip(), filter(lambda x: x.startswith('night-shift/lib/run_sql_template.rb'), get_commands(args.commands_file)))
+    commands = map(lambda x: re.split('\>|\|', x)[0].strip(), filter(lambda x: x.startswith('night-shift/lib/run_sql_template.rb'), get_commands(args.commands_file)))
 
     for command in commands:
         attrs, templates = parse_command(command)
         founded = set([])
         if not all(map(os.path.exists, map(os.path.abspath, templates))):
+            print(map(os.path.abspath, templates))
+            print(map(os.path.exists, map(os.path.abspath, templates)))
             warnings.append( ' => SQL template file is not exists at `{}`'.format(template) )
             continue
 
@@ -58,16 +61,16 @@ if __name__ == '__main__':
             errors.append( ' => `{}` at `{}`'.format(', '.join(attrs-founded), ' '.join(templates)) )
 
     if warnings:
-        print
-        print 'Warnings during the unsued template variable investigation:'
-        print '\n'.join(warnings)
+        print()
+        print('Warnings during the unsued template variable investigation:')
+        print('\n'.join(warnings))
 
     if errors:
         print
-        print 'Unused template variables were found:'
-        print '\n'.join(errors)
+        print('Unused template variables were found:')
+        print('\n'.join(errors))
         sys.exit(1)
     else:
-        print 'No unused template variable found.'
+        print('No unused template variable found.')
 
     sys.exit(0)

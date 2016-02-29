@@ -1,3 +1,4 @@
+from __future__ import print_function
 import re
 import sys
 import argparse
@@ -19,16 +20,16 @@ if __name__ == "__main__":
         if r_pattern.endswith('/'):
             r_pattern = r_pattern[:-1]
         
-        re_target = re.compile(ur'^{}$'.format(r_pattern))
+        re_target = re.compile(r'^{}$'.format(r_pattern))
         for prod_target in production_targets:
             if re_target.match(prod_target):
                 pattern_targets.remove(pattern_target)
                 break
 
     if len(pattern_targets) == 0:
-        print "No unused target found"
+        print("No unused target found")
         sys.exit(0)
 
-    print "Unused targets:\n"
-    print '\n'.join(sorted(list(pattern_targets)))
+    print("Unused targets:\n")
+    print('\n'.join(sorted(list(pattern_targets))))
     sys.exit(1)

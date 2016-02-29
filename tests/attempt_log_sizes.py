@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 import glob
@@ -40,21 +41,21 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--date', help="current date", type=valid_date, default=str(datetime.date.today()))
     args = parser.parse_args()
 
-    log_sizes_lst = get_log_size_for_last_week(args.date)
+    log_sizes_lst = list(get_log_size_for_last_week(args.date))
     if not log_sizes_lst:
-        print '[!] No log files were found!'
+        print('[!] No log files were found!')
         sys.exit(0)
 
     if len(log_sizes_lst) < 5:
-        print '[!] Not enough log files are available!'
+        print('[!] Not enough log files are available!')
         sys.exit(0)
 
     min_thr, _, max_thr = get_median_thresholds(log_sizes_lst)
     today_log_size = get_log_size_for_date(args.date)
     if today_log_size > max_thr or today_log_size < min_thr:
-        print '[!] Log size is below or above threshold:'
-        print 'Expected min: {min_thr} < actual: {actual} < max: {max_thr}' \
-            .format(min_thr=min_thr, max_thr=max_thr, actual=today_log_size)
+        print('[!] Log size is below or above threshold:')
+        print('Expected min: {min_thr} < actual: {actual} < max: {max_thr}' \
+            .format(min_thr=min_thr, max_thr=max_thr, actual=today_log_size))
         sys.exit(1)
 
     sys.exit(0)
