@@ -3,3 +3,4 @@ export MSSQL_PORT="1433"
 export MSSQL_DATABASE=""
 export MSSQL_USER=""
 export MSSQL_PASSWORD=""
+export MSSQL_ENCRYPT="true" # true for azure
