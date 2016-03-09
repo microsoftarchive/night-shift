@@ -6,11 +6,11 @@ This repo is currently in production reaching out to dozens of sources and runni
 
 ## Features
 
-- `Makefile` wrapper that gets triggered by `cron`. It tries to run it at most `MAX_ATTEMPTS` times.
+- `Makefile` wrapper that gets triggered by `cron`. It tries to run it at most `NIGHT_SHIFT_MAX_ATTEMPTS` times.
 - Runs all make targets in a [trackingshell](https://github.com/wunderlist/trackingshell), so timing information, output and errors could be logged. You can add extra steps too (e.g.: upload results into S3).
 - Has a timer script for `cron` like target timing.
 - Has a script to inject conditionals, variables and `Ruby` logic into `SQL`.
-- Converts `SQL` results into `CSV` from **mysql**, **postgresql** and **redshift**.
+- Converts `SQL` results into `CSV` from **mysql**, **postgresql**, **mssql** and **redshift**.
 - Tests to keep your makefile clean.
 - Has a `Flask` application to monitor your logs.
 
@@ -83,13 +83,19 @@ There's also a test for checking whether log size is below or above threshold.
    $ pip install -r web/requirements.txt # for web interface
    ```
 
-4. Create a folder for config files and scripts.
+4. Install dialects' dependencies:
+
+  - [psql](http://www.postgresql.org/docs/9.2/static/app-psql.html) for PostgreSQL and Redshift
+  - [cheetah](https://github.com/wunderlist/cheetah) and [bcp](https://msdn.microsoft.com/en-us/library/ms162802.aspx) for MSSQL
+  - [mysql](https://www.mysql.com) for MySQL.
+
+5. Create a folder for config files and scripts.
 
    ```
    $ mkdir config script
    ```
  
-5. Set your configurations. You can find samples in the `night-shift/config` directory. 
+6. Set your configurations. You can find samples in the `night-shift/config` directory. 
 
    ```bash
    $ cp night-shift/config/dialect_postgres.sh.sample config/dbname_postgres.sh
@@ -106,13 +112,13 @@ There's also a test for checking whether log size is below or above threshold.
    export PGPASSWORD="password"
    ```
 
-6. Create a `makefile`.
+7. Create a `makefile`.
 
    ```bash
    $ echo "include night-shift/lib/boilerplate.mk" > makefile
    ```
 
-7. Write your own make targets. You can extend the build in targets like:
+8. Write your own make targets. You can extend the build in targets like:
    - **scaffold**: Create necessary directory structure.
    - **nuke**: Removes every file. Gives you a clean slate during development.
    - **cleanup**: Terminate pending resources.
@@ -126,7 +132,7 @@ There's also a test for checking whether log size is below or above threshold.
      mkdir -p $@
    ```
 
-8. Set up your night-shift configuration file.
+9. Set up your night-shift configuration file.
 
    ```bash
    $ cp night-shift/config/night_shift.sh.sample config/night_shift.sh
@@ -144,8 +150,19 @@ There's also a test for checking whether log size is below or above threshold.
    ```sh
    export NIGHT_SHIFT_PROJECT_DIR=""
    ```
+   
+   Set the number of parallel jobs (recommended: vCPU+1):
 
-9. **(On production)** Extend your `cron` settings. with
+   ```sh
+   export NIGHT_SHIFT_PARALLEL_JOBS=5
+   ```
+
+   Set the maximum attempts:
+   ```sh
+   export NIGHT_SHIFT_MAX_ATTEMPTS=23
+   ```
+
+10. **(On production)** Extend your `cron` settings. with
 
    ```bash
    source config/night_shift.sh && night-shift/lib/run_workflow.sh 
