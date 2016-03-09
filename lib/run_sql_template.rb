@@ -53,17 +53,17 @@ def run_query_with_cli(expanded_query, mode, options)
 
   elsif options[:dialect] == :mssql
     env = extract_exports(options[:config])
-    cmdattr = "-S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' -U '#{env['MSSQL_USER']}' " +
-      "-P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}'"
 
     if mode == :final and options[:csv]
+      cmdattr = "-S '#{env['MSSQL_HOST']},#{env['MSSQL_PORT']}' -U '#{env['MSSQL_USER']}' " +
+        "-P '#{env['MSSQL_PASSWORD']}' -d '#{env['MSSQL_DATABASE']}'"
       tmpfile = Tempfile.new('bcpinfo-')
       pipe = tmpfile.path
       tmpfile.close!()
       cmd = "mkfifo #{pipe} ; (cat #{pipe} && rm -f #{pipe} &) ; (. #{options[:config].shellescape} && bcp \"#{query}\" queryout #{pipe} #{cmdattr} -c -q -t, >&2)"
       cli = IO.popen(cmd, "r+")
     else
-      cmd = ". #{options[:config].shellescape} && sqlcmd #{cmdattr} -e -p -b -I"
+      cmd = ". #{options[:config].shellescape} && cheetah #{cmdattr}"
       cli = IO.popen(cmd, "r+")
       cli.write(query)
     end
