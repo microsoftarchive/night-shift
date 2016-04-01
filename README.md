@@ -69,6 +69,8 @@ There's also a test for checking whether log size is below or above threshold.
 
 ## How you can use it?
 
+Please install [Python 2.7 or 3.3+](https://www.python.org/downloads/), the corresponding [PyPy or PyPy3](http://pypy.org/download.html) and [Ruby](https://www.ruby-lang.org/en/documentation/installation/).
+
 1. Create a directory for your data-flow.
 2. Add night-shift as submodule.
 
