@@ -75,14 +75,14 @@ class TrackingShellLog(Logs):
                 ordered_commands.append(commands[cmd_hash_key])
 
             elif cmd_hash_key in commands.keys() and data['tag'] in commands[cmd_hash_key]['tags']:
-                errors.add('Found duplicated command: {}'.format(cmd))
+                errors.add('Found duplicated command: {}'.format(data['command']))
 
             elif cmd_hash_key in commands.keys() and data['tag'] == 'END':
                 commands[cmd_hash_key].update(data)
                 commands[cmd_hash_key]['tags'].append(data['tag'])
 
             else:
-                errors.add('Unknown error: {}'.format(cmd))
+                errors.add('Unknown error: {}'.format(data['command']))
 
         for command in ordered_commands:
             command['started_at'] = parse_datetime(command['started_at'])
