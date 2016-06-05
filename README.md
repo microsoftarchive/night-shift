@@ -1,6 +1,6 @@
 # A framework for nightly batch data processing using GNU Make
 
-In 2013 [@torsten](https://github.com/torsten) wanted to set up a batch job manager for the Wunderlist data pipeline. Evaluating Amazon Data Flow, [Oozie](http://oozie.apache.org) and [Luigi](http://luigi.readthedocs.org/en/stable/) all seemed to be overkill. Inspired by [Mike Bostock](http://bost.ocks.org/mike/make/) he started out rolling one `Makefile` started by a `cronjob`. In two years this tool has been grown to accomodate the needs and in 2015 we open sourced the **skeleton** of the add-ons that make your life easier going old skool and seventies or KISS, you may say.
+In 2013 [@torsten](https://github.com/torsten) wanted to set up a batch job manager for the Wunderlist data pipeline. Evaluating Amazon Data Flow, [Oozie](http://oozie.apache.org) and [Luigi](http://luigi.readthedocs.org/en/stable/) all seemed to be overkill. Inspired by [Jeff Hammerbacher](https://twitter.com/hackingdata) he started out rolling one `Makefile` started by a `cronjob`. In two years this tool has been grown to accomodate the needs and in 2015 we open sourced the **skeleton** of the add-ons that make your life easier going old skool and seventies or KISS, you may say.
 
 This repo is currently in production reaching out to dozens of sources and running hundreds of SQLs. If you are interested in our setup, check out [this presentation](http://www.slideshare.net/soobrosa/6w-bp-datashow).
 
