@@ -44,8 +44,6 @@ if __name__ == '__main__':
         attrs, templates = parse_command(command)
         founded = set([])
         if not all(map(os.path.exists, map(os.path.abspath, templates))):
-            print(map(os.path.abspath, templates))
-            print(map(os.path.exists, map(os.path.abspath, templates)))
             warnings.append( ' => SQL template file is not exists at `{}`'.format(template) )
             continue
 
